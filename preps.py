@@ -3,7 +3,7 @@ import numpy as np
 import random
 import math
 import matplotlib.pyplot as plt
-from characteristics import mean_vals, st_deviation
+
 from sklearn.preprocessing import LabelEncoder
 
 def nan_check(df):
@@ -45,17 +45,10 @@ def define_distrib(df):
     plt.tight_layout()
     plt.show()
 
-def std_scaler(df):
-    cnt = 0
-    shape = df.shape
-    means = mean_vals(df, shape[0])
-    devs = st_deviation(df, means, shape[0])
-    #используется для нормального и геометрического распределения
-    for col in df.columns:
-        if df[col].name != 'Outcome':
-            df.loc[:, col] = (df[col] - means[cnt]) / devs[cnt]
-        cnt += 1
-
+def leaf(y):
+    y_n = list(y)
+    val_leaf = max(y_n, key=y_n.count)
+    return val_leaf
 def min_max_scaler(df):
     #используется для равномерного распределения
     min_val = df.min()
@@ -76,12 +69,12 @@ def splitter (X, y, test_size, random_state):
 
     X_train = pd.DataFrame(X.values[tr_ids, :], columns=X.columns)
     X_test = pd.DataFrame(X.values[test_ids, :], columns=X.columns)
-    y_train = pd.DataFrame(y.values[tr_ids], columns=['Performance Index'])
-    y_test = pd.DataFrame(y.values[test_ids], columns=['Performance Index'])
+    y_train = pd.DataFrame(y.values[tr_ids], columns=['success'])
+    y_test = pd.DataFrame(y.values[test_ids], columns=['success'])
     return X_train, X_test, y_train, y_test
 
 def create_metric(df):
-    df['success'] = (df['GRADE'] >= 6).astype(int) #при 7 акураси 0.93
+    df['success'] = (df['GRADE'] >= 5).astype(int) #при 7 акураси 0.93
 
 import random
 
@@ -100,11 +93,4 @@ def get_rand_frame(df):
     print("Выбранные рандомно признаки", col_chosen)
     return new_df
 
-def prep_data(X, y):
-    min_max_scaler(y)
-    std_scaler(X)
-    X_train, X_test, y_train, y_test = splitter(X, y,0.3, 42)
-
-
-    return X_train, X_test, y_train, y_test
 

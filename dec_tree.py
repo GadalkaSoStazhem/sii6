@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
+from preps import *
 
-class Tree_Node(): #value is for leaf, other is for decision node
+class Tree_Node(): #value для листа, остальное для десижн нод
     def __init__(self, value = None, left = None, right = None, feature_idx = None, feature_limit = None, info = None):
         self.value = value
         self.left = left
@@ -12,37 +13,37 @@ class Tree_Node(): #value is for leaf, other is for decision node
 
 
 class Decision_Tree():
-    def __init__(self, max_depht = 2, min_samples = 1):
-        self.max_depth = max_depht
-        self.min_samples = min_samples
+    def __init__(self, max_depth = 2, min_samples_s = 1):
+        self.max_depth = max_depth
+        self.min_samples_s = min_samples_s
         self.root = None
 
-    def tree_splitter(self, X, y, rows, feature_cnt):
+    #разделение деревьев на поддеревья по принципу наибольшей инфы
+    def tree_splitter(self, df, feature_cnt):
         splitted = {}
         info_max = -1000000
-
         for idx in range(feature_cnt):
-            vals = X[:, idx]
+            vals = df[:, idx]
             lims = np.unique(vals)
             for lim in lims:
-                left_x = np.array([ftr for ftr in X if float(ftr[idx]) <= float(lim)])
-                right_x = np.array([ftr for ftr in X if float(ftr[idx]) > float(lim)])
-                if len(left_x) != 0 and len(right_x) != 0:
-
-                    left_y = np.array([ftr for ftr in y if float(ftr[idx]) <= float(lim)])
-                    right_y = np.array([ftr for ftr in y if float(ftr[idx]) > float(lim)])
+                left = np.array([ftr for ftr in df if float(ftr[idx]) <= float(lim)])
+                right = np.array([ftr for ftr in df if float(ftr[idx]) > float(lim)])
+                if len(left) != 0 and len(right) != 0:
+                    y = df[:, -1]
+                    left_y = left[:, -1]
+                    right_y = right[:, -1]
                     info_val = self.info_count(y, left_y, right_y)
                     if info_val > info_max:
-                        splitted['left_x'] = left_x
-                        splitted['left_y'] = left_y
-                        splitted['right_x'] = right_x
-                        splitted['right_y'] = right_y
+                        splitted['left'] = left
+                        splitted['right'] = right
                         splitted['feature_idx'] = idx
                         splitted['feature_limit'] = lim
                         splitted['info'] = info_val
                         info_max = info_val
 
-            return splitted
+        return splitted
+
+    #расчет количества информации через энтропию
     def info_count(self, parent, c_l, c_r):
         uniq_p = np.unique(parent)
         uniq_c_l = np.unique(c_l)
@@ -61,26 +62,28 @@ class Decision_Tree():
             ent_c_r += -pres_class * np.log2(pres_class)
         return ent_p - (len(c_l) / len(parent)) * ent_c_l - (len(c_r) / len(parent)) * ent_c_r
 
-    def create_tree(self, X, y, current_level = 0):
-        rows = X.shape[0]
-        features_cnt = X.shape[1]
+    #само создание дерева
+    def create_tree(self, df, current_level = 0):
+        rows = df.shape[0]
+        features_cnt = df.shape[1] - 1
 
-        if rows >= self.min_samples and current_level <= self.max_depth:
-            splitted = self.tree_splitter(X, y, rows, features_cnt)
-            if splitted['info'] > 0:
-                tree_left = self.create_tree(splitted['left_x'], splitted['left_y'], current_level + 1)
-                tree_right = self.create_tree(splitted['right_x'], splitted['right_y'], current_level + 1)
+        if rows >= self.min_samples_s and current_level <= self.max_depth:
+            splitted = self.tree_splitter(df, features_cnt)
+
+            if splitted['info'] > 0.0:
+                tree_left = self.create_tree(splitted['left'], current_level + 1)
+                tree_right = self.create_tree(splitted['right'], current_level + 1)
 
                 return Tree_Node(None, tree_left, tree_right, splitted['feature_idx'], splitted['feature_limit'], splitted['info'])
+        leaf_val = leaf(df[:, -1])
+        return Tree_Node(value=leaf_val)
 
-        y_n = list(y)
-        val_leaf = max(y_n, key=y_n.count)
-        return Tree_Node(value=val_leaf)
-
+    #фит (склейка хар-тик и таргета в датасет, объявление корня
     def fit(self, X, y):
-        self.root = self.create_tree(X, y)
+        df = np.concatenate([X, y], axis = 1)
+        self.root = self.create_tree(df)
 
-
+    #предсказательная функция
     def predictor(self, x, trained_tree):
         if trained_tree.value == None:
             val = x[trained_tree.feature_idx]
@@ -90,7 +93,7 @@ class Decision_Tree():
                 return self.predictor(x, trained_tree.right)
 
         return trained_tree.value
-
+    #само предсказание
     def predict(self, X):
         y_pred = [self.predictor(x, self.root) for x in X]
         return y_pred
