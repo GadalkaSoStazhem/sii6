@@ -18,8 +18,6 @@ X_train, X_test, y_train, y_test = splitter(X_rand, y, test_size=0.2, random_sta
 
 dtc = Decision_Tree(max_depth=3, min_samples_s=3)
 d1_y_train = y_train.values.reshape(-1, 1)
-d1_y = y.values.reshape(-1, 1)
-#dtc.fit(X_rand.values, d1_y)
 dtc.fit(X_train.values, d1_y_train)
 y_pred = dtc.predict(X_test.values)
 
