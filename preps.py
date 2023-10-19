@@ -81,7 +81,7 @@ def splitter (X, y, test_size, random_state):
     return X_train, X_test, y_train, y_test
 
 def create_metric(df):
-    df['success'] = (df['GRADE'] >= 4).astype(int)
+    df['success'] = (df['GRADE'] >= 6).astype(int) #при 7 акураси 0.93
 
 import random
 
