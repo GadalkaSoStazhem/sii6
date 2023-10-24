@@ -1,99 +1,87 @@
-import pandas as pd
 import numpy as np
 from preps import *
-
 class Tree_Node(): #value для листа, остальное для десижн нод
-    def __init__(self, value = None, left = None, right = None, feature_idx = None, feature_limit = None, info = None):
+    def __init__(self, value = None, children = None, feature_idx = None, info = None):
         self.value = value
-        self.left = left
-        self.right = right
-        self.feature_idx = feature_idx
-        self.feature_limit = feature_limit
+        self.children = children
+        self.feature_idx = feature_idx #indeks dlya priznaka
         self.info = info
 
 
-class Decision_Tree():
-    def __init__(self, max_depth = 2, min_samples_s = 1):
+class Decision_Tree_New():
+    def __init__(self, max_depth = 6, min_samples_s = 3):
         self.max_depth = max_depth
         self.min_samples_s = min_samples_s
         self.root = None
-
-    #разделение деревьев на поддеревья по принципу наибольшей инфы
-    def tree_splitter(self, df, feature_cnt):
-        splitted = {}
-        info_max = -1000000
-        for idx in range(feature_cnt):
-            vals = df[:, idx]
-            lims = np.unique(vals)
-            for lim in lims:
-                left = np.array([ftr for ftr in df if float(ftr[idx]) <= float(lim)])
-                right = np.array([ftr for ftr in df if float(ftr[idx]) > float(lim)])
-                if len(left) != 0 and len(right) != 0:
-                    y = df[:, -1]
-                    left_y = left[:, -1]
-                    right_y = right[:, -1]
-                    info_val = self.info_count(y, left_y, right_y)
-                    if info_val > info_max:
-                        splitted['left'] = left
-                        splitted['right'] = right
-                        splitted['feature_idx'] = idx
-                        splitted['feature_limit'] = lim
-                        splitted['info'] = info_val
-                        info_max = info_val
-
-        return splitted
-
-    #расчет количества информации через энтропию
-    def info_count(self, parent, c_l, c_r):
-        uniq_p = np.unique(parent)
-        uniq_c_l = np.unique(c_l)
-        uniq_c_r = np.unique(c_r)
-        ent_p = 0
-        ent_c_l = 0
-        ent_c_r = 0
-        for el in uniq_p:
-            pres_class = len(parent[parent == el]) / len(parent)
-            ent_p += -pres_class * np.log2(pres_class)
-        for el in uniq_c_l:
-            pres_class = len(c_l[c_l == el]) / len(c_l)
-            ent_c_l += -pres_class * np.log2(pres_class)
-        for el in uniq_c_r:
-            pres_class = len(c_r[c_r == el]) / len(c_r)
-            ent_c_r += -pres_class * np.log2(pres_class)
-        return ent_p - (len(c_l) / len(parent)) * ent_c_l - (len(c_r) / len(parent)) * ent_c_r
-
-    #само создание дерева
-    def create_tree(self, df, current_level = 0):
-        rows = df.shape[0]
-        features_cnt = df.shape[1] - 1
-
-        if rows >= self.min_samples_s and current_level <= self.max_depth:
-            splitted = self.tree_splitter(df, features_cnt)
-
-            if splitted['info'] > 0.0:
-                tree_left = self.create_tree(splitted['left'], current_level + 1)
-                tree_right = self.create_tree(splitted['right'], current_level + 1)
-
-                return Tree_Node(None, tree_left, tree_right, splitted['feature_idx'], splitted['feature_limit'], splitted['info'])
-        leaf_val = leaf(df[:, -1])
-        return Tree_Node(value=leaf_val)
-
-    #фит (склейка хар-тик и таргета в датасет, объявление корня
     def fit(self, X, y):
-        df = np.concatenate([X, y], axis = 1)
+        df = np.concatenate([X, y], axis=1)
         self.root = self.create_tree(df)
 
-    #предсказательная функция
-    def predictor(self, x, trained_tree):
-        if trained_tree.value == None:
-            val = x[trained_tree.feature_idx]
-            if val <= trained_tree.feature_limit:
-                return self.predictor(x, trained_tree.left)
-            else:
-                return self.predictor(x, trained_tree.right)
+    def create_tree(self, df, current_level = 0):
+        rows = df.shape[0]
+        n_features = df.shape[1] - 1
+        if rows >= self.min_samples_s and current_level <= self.max_depth:
+            splitted_tree = self.get_best_split(df, n_features)
+            limits = np.unique(df[:, splitted_tree['feature_idx']])  # Получите limits здесь
+            childrens_dereva = []
+            for lim in limits:
+                child = df[df[:, splitted_tree['feature_idx']] == lim]
+                childrens_dereva.append(self.create_tree(child, current_level + 1))
+            return Tree_Node(None, childrens_dereva, splitted_tree['feature_idx'], splitted_tree['info'])
+        leaf_val = leaf(df[:, -1])
+        return Tree_Node(value=leaf_val)
+    def get_best_split(self, df, n_features):
+        splitted = {}
+        info_gains = self.count_info_gain(df, n_features)
+        sorted_gains = np.argsort(info_gains)[::-1]
+        max_info_gain_id = sorted_gains[0]
+        max_info_gain_feature = df[:, max_info_gain_id]
+        limits = np.unique(max_info_gain_feature)
+        children = []
+        for lim in limits:
+            child = df[df[:, max_info_gain_id] == lim]
 
-        return trained_tree.value
-    #само предсказание
+            children.append(child)
+
+        splitted['children'] = children
+        splitted['feature_idx'] = max_info_gain_id
+        splitted['info'] = max(info_gains)
+        return splitted
+
+    def entropy(self, feature, y, val):
+        uniq_y = np.unique(y)
+        val_cnt = np.sum(feature == val)
+        tmp = 0
+        for u_y in uniq_y:
+            class_prob = np.sum(np.logical_and(feature == val, y == u_y)) / val_cnt
+            tmp -= class_prob * np.log2(class_prob + 1e-15)
+
+        entropy = (val_cnt / len(feature)) * tmp
+        return entropy
+
+    def count_info_gain(self, df, n_features):
+        info_gains = []
+        y = df[:, -1]  # Столбец меток классов
+        for idx in range(n_features):
+            gain = 0
+            feature = df[:, idx]
+            uniq_vals = np.unique(feature)
+            for val in uniq_vals:
+                gain += self.entropy(feature, y, val)
+            info_gains.append(gain)
+        return info_gains
+
+    def predictor(self, x, tree):
+        if tree.value is None:
+            val = x[tree.feature_idx]
+            uniqs = np.unique(x[tree.feature_idx])
+            for i in range(len(uniqs)):
+                result = self.predictor(x, tree.children[i])
+                if result is not None:
+                    return result
+        return tree.value
+
     def predict(self, X):
         y_pred = [self.predictor(x, self.root) for x in X]
         return y_pred
+
