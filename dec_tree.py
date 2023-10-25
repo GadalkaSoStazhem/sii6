@@ -10,8 +10,7 @@ class Tree_Node(): #value для листа, остальное для деси�
 
 
 class Not_Binary_Decision_Tree():
-    def __init__(self, max_depth = 6, min_samples_s = 3):
-        self.max_depth = max_depth
+    def __init__(self, min_samples_s = 2):
         self.min_samples_s = min_samples_s
         self.root = None
     def fit(self, X, y):
@@ -21,7 +20,7 @@ class Not_Binary_Decision_Tree():
     def create_tree(self, df, current_level = 0):
         rows = df.shape[0]
         n_features = df.shape[1] - 1
-        if rows >= self.min_samples_s and current_level <= self.max_depth:
+        if rows >= self.min_samples_s:
             splitted_tree = self.get_best_split(df, n_features)
             if splitted_tree['info'] > 0.0:
                 childrensy = splitted_tree['children']
@@ -81,8 +80,6 @@ class Not_Binary_Decision_Tree():
     def predictor(self, x, tree):
         if tree.value is None:
             val = x[tree.feature_idx]
-            lims = tree.feature_limits
-            childrens = tree.children[str(val)]
             return self.predictor(x, tree.children[str(val)])
         return tree.value
 
