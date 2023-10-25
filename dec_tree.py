@@ -9,7 +9,7 @@ class Tree_Node(): #value для листа, остальное для деси�
         self.info = info
 
 
-class Decision_Tree_New():
+class Not_Binary_Decision_Tree():
     def __init__(self, max_depth = 6, min_samples_s = 3):
         self.max_depth = max_depth
         self.min_samples_s = min_samples_s
@@ -25,11 +25,11 @@ class Decision_Tree_New():
             splitted_tree = self.get_best_split(df, n_features)
             if splitted_tree['info'] > 0.0:
                 childrensy = splitted_tree['children']
-                childrensy_dereva = []
+                childrensy_dereva = {}
                 for key in list(childrensy.keys()):
                     child = childrensy[key]
                     child_node = self.create_tree(child, current_level + 1)
-                    childrensy_dereva.append(child_node)
+                    childrensy_dereva[key] = child_node
                 return Tree_Node(None, childrensy_dereva, splitted_tree['feature_idx'], splitted_tree['feature_limits'], splitted_tree['info'])
         leaf_val = leaf(df[:, -1])
         return Tree_Node(value=leaf_val)
@@ -81,11 +81,9 @@ class Decision_Tree_New():
     def predictor(self, x, tree):
         if tree.value is None:
             val = x[tree.feature_idx]
-            uniqs = np.unique(x[tree.feature_idx])
-            for i in range(len(uniqs)):
-                result = self.predictor(x, tree.children[i])
-                if result is not None:
-                    return result
+            lims = tree.feature_limits
+            childrens = tree.children[str(val)]
+            return self.predictor(x, tree.children[str(val)])
         return tree.value
 
     def predict(self, X):

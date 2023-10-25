@@ -12,7 +12,7 @@ class Tree_Node(): #value для листа, остальное для деси�
         self.info = info
 
 
-class Decision_Tree():
+class Binary_Decision_Tree():
     def __init__(self, max_depth = 2, min_samples_s = 1):
         self.max_depth = max_depth
         self.min_samples_s = min_samples_s
